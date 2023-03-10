@@ -6,7 +6,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.sql.*;
@@ -22,129 +25,7 @@ public class TaskApplication {
     private static final String user = "postgres";
     private static final String password = "13975+*Akira";
 
-    public static void main(String[] args) throws URISyntaxException, IOException {
-//        SpringApplication.run(TaskApplication.class, args);
-//
-//        File f = new File("C:\\Users\\Akira_Life\\IdeaProjects\\task\\src\\main\\resources\\test_source\\rule.json");
-//        byte[] bytes = Files.readAllBytes(f.toPath());
-//        String json = new String(bytes);
-//        ObjectMapper objectMapper = new ObjectMapper();
-//
-//        Rule rule = objectMapper.readValue(json, Rule.class);
-//        StringBuilder columns = new StringBuilder();
-//
-//        for (Join join : rule.joins()) {
-//            columns.append(join.table_left()).append(".").append(join.entity_left()).append(", ");
-//        }
-//        columns.deleteCharAt(columns.length() - 1);
-//        columns.deleteCharAt(columns.length() - 1);
-//
-//        StringBuilder query = new StringBuilder();
-//        query.append("SELECT ")
-//                        .append(columns)
-//                                .append(" ")
-//                                        .append("FROM ");
-//        //TODO сделать проверку на совпадающую таблицу, и указать НА ошибку ЯВНО
-//        //TODO если таблица повторяется в каждом Join из Joins то, выполняю 1
-//
-////        query.append(rule.joins().get(0).table_left())
-////                .append(" ")
-////                .append(rule.joins().get(0).type().toUpperCase())
-////                .append(" ")
-////                .append("JOIN")
-////                .append(" ")
-////                .append(rule.joins().get(0).table_right())
-////                .append(" ")
-////                .append("ON ")
-////                .append(rule.joins().get(0).table_left())
-////                .append(".")
-////                .append(rule.joins().get(0).entity_left())
-////                .append(" ")
-////                .append("=")
-////                .append(" ")
-////                .append(rule.joins().get(0).table_right())
-////                .append(".")
-////                .append(rule.joins().get(0).entity_right())
-////                .append(" ");
-////
-////
-////
-////        Join joinTemp = rule.joins().get(0);
-////        int index = 0;
-////
-////
-////        for (Join join : rule.joins()) {
-////
-////            if (join == joinTemp) {
-////                continue;
-////            }
-////
-////            String tableLeft = join.table_left();
-////            String tableRight = join.table_right();
-////            String entityLeft = join.entity_left();
-////            String entityRight = join.entity_right();
-////            String aliasOfTableRight = Character.toString(tableRight.charAt(0)) + index;
-////            String aliasOfTableLeft = Character.toString(tableLeft.charAt(0)) + index;
-////            String joinType = join.type().toUpperCase();
-////
-////
-////            query.append(joinType)
-////                    .append(" ")
-////                    .append("JOIN")
-////                    .append(" ")
-////                    .append(tableLeft)
-////                    .append(" ")
-////                    .append(aliasOfTableLeft)
-////                    .append(" ")
-////                    .append("ON ")
-////                    .append(aliasOfTableLeft)
-////                    .append(".")
-////                    .append(entityLeft)
-////                    .append(" = ")
-////                    .append(tableRight)
-////                    .append(".")
-////                    .append(entityRight)
-////                    .append(" ");
-////            index++;
-////
-////        }
-////        query.deleteCharAt(query.length() - 1);
-//////        query.deleteCharAt(query.length() - 1);
-//////        query.deleteCharAt(query.length() - 1);
-//////        query.deleteCharAt(query.length() - 1);
-//////        query.deleteCharAt(query.length() - 1);
-//        query.append(";");
-//        System.out.println(query);
-//        //TODO Выполнить Query +
-//        //TODO Превратить полученные из запроса данные в Объекты
-//
-//
-////        try {
-////
-////            Class.forName("org.postgresql.Driver").getDeclaredConstructor().newInstance();
-////
-////            try (Connection conn = connect()) {
-////
-////                Statement statement = conn.createStatement();
-////                ResultSet resultSet = statement.executeQuery(query.toString());
-////
-////                // TODO Пройтись по variables, и получить список
-////                // TODO Пройтись по списку и вытащить те данные которые указанны в variables
-////                // TODO Парсить VALUE из PARAMETERS
-////                //
-//////                while (resultSet.next()) {
-//////
-//////                }
-////
-////
-////            }
-////        } catch (Exception ex) {
-////            System.out.println("Connection failed...");
-////
-////            System.out.println(ex);
-////        }
-
-
+    public static void main(String[] args) throws IOException {
         SpringApplication.run(TaskApplication.class, args);
 
         File f = new File("C:\\Users\\Akira_Life\\IdeaProjects\\task\\src\\main\\resources\\test_source\\rule.json");
@@ -182,42 +63,19 @@ public class TaskApplication {
             }
         }
 
-        //TODO Выполнить Query
-        //TODO Превратить полученные из запроса данные в Объекты
+        System.out.println(query);
 
-        List<SelectedRow> selectedRows = new ArrayList<>();
+        int a = 0;
 
         try {
 
-            Class.forName("org.postgresql.Driver").getDeclaredConstructor().newInstance();
 
             try (Connection conn = connect()) {
 
                 Statement statement = conn.createStatement();
                 ResultSet resultSet = statement.executeQuery(query.toString());
 
-                // TODO Пройтись по variables, и получить список
-                // TODO Пройтись по списку и вытащить те данные которые указанны в variables
-                // TODO Парсить VALUE из PARAMETERS
-
                 List<Variable> variables = rule.variables();
-
-                List<Row1> row1List = new ArrayList<>();
-
-//                while (resultSet.next()) {
-//
-//                    List<Object> objects = new ArrayList<>();
-//
-//                    for (Variable variable : variables) {
-//                        Object valueOfColumn = resultSet.getObject(variable.field());
-//                        objects.add(valueOfColumn);
-//                    }
-//
-//
-//                    row1List.add(new Row1(objects));
-//                }
-
-                List<Variable2> variable2List = new ArrayList<>();
 
                 HashMap<String, VariableData> variablesMap = new HashMap<>();
 
@@ -241,76 +99,105 @@ public class TaskApplication {
                 assert variables.size() > 0;
 
 
-
-
                 var listOfParameters = new ArrayList<Parameter2>();
 
                 for (Parameter parameter : rule.parameters()) {
                     var listOfField = new ArrayList<String>();
                     var listOfOperator = new ArrayList<String>();
-                    var fieldResult = "";
+                    StringBuilder fieldResult = new StringBuilder();
 
                     for (int i = 0; i < parameter.value().length(); i++) {
 
                         char currentSymbol = parameter.value().charAt(i);
 
                         if (currentSymbol == '+' || currentSymbol == '-' ||
-                        currentSymbol == '*' || currentSymbol == '/') {
+                                currentSymbol == '*' || currentSymbol == '/') {
                             listOfOperator.add(Character.toString(currentSymbol));
-                            listOfField.add(fieldResult);
-                            fieldResult = "";
+                            listOfField.add(fieldResult.toString());
+                            fieldResult = new StringBuilder();
                         } else {
-                            fieldResult += Character.toString(currentSymbol);
+                            fieldResult.append(currentSymbol);
                         }
 
                         if (i == parameter.value().length() - 1) {
-                            listOfField.add(fieldResult);
+                            listOfField.add(fieldResult.toString());
                         }
                     }
                     listOfParameters.add(new Parameter2(parameter.name(), parameter.type(),
                             listOfField, listOfOperator));
                 }
 
+                System.out.println();
 
-
-
+                var parameterResult = new ArrayList<ParameterResult>();
                 final int setSize = variablesMap.get(variables.get(0).name()).values().size();
-//                "value": "s40 - s120_3"
-                var p1 = new ArrayList<>(setSize);
 
-                for (int i = 0; i < setSize; i++) {
+                BigDecimal parameterValue1;
+                BigDecimal parameterValue2;
+                BigDecimal resultValue = null;
 
-                    var s40Value = (BigDecimal) variablesMap.get("s40").values().get(i);
+                for (Parameter2 parameter2 : listOfParameters) {
 
-                    var s120_3Value = (BigDecimal) variablesMap.get("s120_3").values().get(i);
+                    for (int i = 0; i < setSize; i++) {
+                        a = i;
 
+                        switch (parameter2.listOfOperators().get(0)) {
+                            case "+" -> {
+                                parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
+                                parameterValue2 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(1)).values().get(i);
+                                resultValue = parameterValue1.add(parameterValue2);
+                                System.out.println(resultValue);
+                            }
+                            case "-" -> {
+                                parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
+                                parameterValue2 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(1)).values().get(i);
+                                resultValue = parameterValue1.subtract(parameterValue2);
+                                System.out.println(resultValue);
+                            }
+                            case "/" -> {
+                                parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
+                                parameterValue2 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(1)).values().get(i);
+                                try {
+                                    resultValue = parameterValue1.divide(parameterValue2, 3, RoundingMode.DOWN);
 
-                    var p1Value = s40Value.subtract(s120_3Value);
-                    p1.add(i, p1Value);
+                                } catch (ArithmeticException arithmeticException) {
+                                    System.out.println("Деление на 0");
+                                }
+                                System.out.println(resultValue);
 
-
-
-
-
-
-
-                    System.out.println();
-
+                            }
+                            case "*" -> {
+                                parameterValue1 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
+                                parameterValue2 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
+                                resultValue = parameterValue1.multiply(parameterValue2);
+                                System.out.println(resultValue);
+                            }
+                        }
+                        parameterResult.add(new ParameterResult(parameter2.name(), resultValue));
+                    }
 
                 }
-                System.out.println();
+                System.out.println("sssssssss");
+
+
+
+            } catch (SQLException ex) {
+                System.out.println("Connection failed...");
+
             }
 
-        } catch (Exception ex) {
-            System.out.println("Connection failed...");
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.out.println(a);
         }
+
+
     }
-
-
 
     public static Connection connect() throws SQLException {
         return DriverManager.getConnection(url, user, password);
     }
-
-
 }
+
+
+// пока не использую параметры, только столбцы и целые числа
