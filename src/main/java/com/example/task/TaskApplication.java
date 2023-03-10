@@ -11,6 +11,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -235,15 +236,77 @@ public class TaskApplication {
 
                     }
                 }
+                System.out.println();
 
+                assert variables.size() > 0;
+
+
+
+
+                var listOfParameters = new ArrayList<Parameter2>();
+
+                for (Parameter parameter : rule.parameters()) {
+                    var listOfField = new ArrayList<String>();
+                    var listOfOperator = new ArrayList<String>();
+                    var fieldResult = "";
+
+                    for (int i = 0; i < parameter.value().length(); i++) {
+
+                        char currentSymbol = parameter.value().charAt(i);
+
+                        if (currentSymbol == '+' || currentSymbol == '-' ||
+                        currentSymbol == '*' || currentSymbol == '/') {
+                            listOfOperator.add(Character.toString(currentSymbol));
+                            listOfField.add(fieldResult);
+                            fieldResult = "";
+                        } else {
+                            fieldResult += Character.toString(currentSymbol);
+                        }
+
+                        if (i == parameter.value().length() - 1) {
+                            listOfField.add(fieldResult);
+                        }
+                    }
+                    listOfParameters.add(new Parameter2(parameter.name(), parameter.type(),
+                            listOfField, listOfOperator));
+                }
+
+
+
+
+                final int setSize = variablesMap.get(variables.get(0).name()).values().size();
+//                "value": "s40 - s120_3"
+                var p1 = new ArrayList<>(setSize);
+
+                for (int i = 0; i < setSize; i++) {
+
+                    var s40Value = (BigDecimal) variablesMap.get("s40").values().get(i);
+
+                    var s120_3Value = (BigDecimal) variablesMap.get("s120_3").values().get(i);
+
+
+                    var p1Value = s40Value.subtract(s120_3Value);
+                    p1.add(i, p1Value);
+
+
+
+
+
+
+
+                    System.out.println();
+
+
+                }
+                System.out.println();
             }
 
         } catch (Exception ex) {
             System.out.println("Connection failed...");
         }
-
-
     }
+
+
 
     public static Connection connect() throws SQLException {
         return DriverManager.getConnection(url, user, password);
