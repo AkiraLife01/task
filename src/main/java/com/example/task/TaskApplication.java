@@ -1,5 +1,6 @@
 package com.example.task;
 
+import com.example.task.domain.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -8,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,7 +45,7 @@ public class TaskApplication {
 
                 assert variables.size() > 0;
 
-                List<Parameter2> parameterList = obtainParameters(rule.parameters());
+                List<CalculatedParameter> parameterList = obtainParameters(rule.parameters());
 
                 final int amountLineDB = variablesMap.get(variables.get(0).name()).values().size();
 
@@ -63,37 +65,9 @@ public class TaskApplication {
                     }
                 }
 
-                Boolean[] countedResult = new Boolean[amountLineDB];
+                Boolean[] computedConditions = new Boolean[amountLineDB];
 
-                if (rule.tree().get(0).operator().equals("AND")) {
-
-                    for (int i = 0; i < listSelectedCriterias.size(); i++) {
-                        for (int j = 0; j < amountLineDB; j++) {
-                            Boolean aBoolean = listSelectedCriterias.get(i).get(j);
-
-                            if (i == 0) {
-                                countedResult[j] = aBoolean;
-                            } else {
-                                countedResult[j] &= aBoolean;
-                            }
-                        }
-                    }
-
-                } else if (rule.tree().get(0).operator().equals("OR")) {
-
-                    for (int i = 0; i < listSelectedCriterias.size(); i++) {
-                        for (int j = 0; j < amountLineDB; j++) {
-                            Boolean aBoolean = listSelectedCriterias.get(i).get(j);
-
-                            if (i == 0) {
-                                countedResult[j] = aBoolean;
-                            } else {
-                                countedResult[j] |= aBoolean;
-                            }
-                        }
-                    }
-
-                }
+                computeConditions(computedConditions, rule, listSelectedCriterias, amountLineDB);
 
                 List<String> fields = new ArrayList<>();
                 for (Join join : rule.joins()) {
@@ -101,33 +75,19 @@ public class TaskApplication {
                     fields.add(field);
                 }
 
-                List<HashMap<String, Object>> resultMaps = new ArrayList<>();
-
-                for (int i = 0; i < amountLineDB; i++) {
-                    if (countedResult[i]) {
-                        HashMap<String, Object> map = new HashMap<>();
-
-                        for (String field : fields) {
-                            map.put(field, variablesMap.get(field).values().get(i));
-                        }
-                        resultMaps.add(map);
-                    }
-                }
-
+                List<HashMap<String, Object>> resultMaps =
+                        buildResultMaps(amountLineDB, computedConditions, fields, variablesMap);
 
                 ObjectMapper objectMapper = new ObjectMapper();
                 String resultJson = objectMapper.writeValueAsString(resultMaps);
                 System.out.println(resultJson);
 
-
-                String directory = "C:\\Users\\Akira_Life\\IdeaProjects\\task\\src\\main\\resources\\";
-                String file = "response.json";
-                Path path = Paths.get(directory + file);
+                Path path = Paths.get("response.json");
 
                 Files.write(path, resultJson.getBytes());
 
 
-                System.out.println(countedResult.length);
+                System.out.println(computedConditions.length);
 
             } catch (SQLException ex) {
                 System.out.println("Connection failed...");
@@ -139,6 +99,54 @@ public class TaskApplication {
         }
 
 
+    }
+
+    private static List<HashMap<String, Object>> buildResultMaps(int amountLineDB, Boolean[] computedConditions, List<String> fields, HashMap<String, VariableData> variablesMap) {
+        List<HashMap<String, Object>> resultMaps = new ArrayList<>();
+
+        for (int i = 0; i < amountLineDB; i++) {
+            if (computedConditions[i]) {
+                HashMap<String, Object> map = new HashMap<>();
+
+                for (String field : fields) {
+                    map.put(field, variablesMap.get(field).values().get(i));
+                }
+                resultMaps.add(map);
+            }
+        }
+        return resultMaps;
+    }
+
+    private static void computeConditions(Boolean[] computedConditions, Rule rule, List<List<Boolean>> listSelectedCriterias, int amountLineDB) {
+        if (rule.tree().get(0).operator().equals("AND")) {
+
+            for (int i = 0; i < listSelectedCriterias.size(); i++) {
+                for (int j = 0; j < amountLineDB; j++) {
+                    Boolean aBoolean = listSelectedCriterias.get(i).get(j);
+
+                    if (i == 0) {
+                        computedConditions[j] = aBoolean;
+                    } else {
+                        computedConditions[j] &= aBoolean;
+                    }
+                }
+            }
+
+        } else if (rule.tree().get(0).operator().equals("OR")) {
+
+            for (int i = 0; i < listSelectedCriterias.size(); i++) {
+                for (int j = 0; j < amountLineDB; j++) {
+                    Boolean aBoolean = listSelectedCriterias.get(i).get(j);
+
+                    if (i == 0) {
+                        computedConditions[j] = aBoolean;
+                    } else {
+                        computedConditions[j] |= aBoolean;
+                    }
+                }
+            }
+
+        }
     }
 
     private static HashMap<Long, List<Boolean>> computeCriterias(HashMap<String, VariableData> variablesMap, List<Criteria> criterias, HashMap<String, VariableData> parameterMap, int amountLineDB) throws Exception {
@@ -229,35 +237,35 @@ public class TaskApplication {
         return criteriasTemp;
     }
 
-    private static HashMap<String, VariableData> obtainParameterValue(HashMap<String, VariableData> variablesMap, List<Parameter2> parameterList, int amountLineDB) {
+    private static HashMap<String, VariableData> obtainParameterValue(HashMap<String, VariableData> variablesMap, List<CalculatedParameter> parameterList, int amountLineDB) {
         BigDecimal parameterValue1;
         BigDecimal parameterValue2;
         HashMap<String, VariableData> map = new HashMap<>();
 
         // assume there are only one operator per parameter value
-        for (Parameter2 parameter2 : parameterList) {
-            var type = parameter2.type();
+        for (CalculatedParameter calculatedParameter : parameterList) {
+            var type = calculatedParameter.type();
             List<Object> objects = new ArrayList<>();
 
             for (int i = 0; i < amountLineDB; i++) {
 
                 Object resultValue = null;
 
-                switch (parameter2.listOfOperators().get(0)) {
+                switch (calculatedParameter.listOfOperators().get(0)) {
                     case "+" -> {
-                        parameterValue1 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(0)).values().get(i);
-                        parameterValue2 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(1)).values().get(i);
+                        parameterValue1 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(0)).values().get(i);
+                        parameterValue2 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(1)).values().get(i);
                         resultValue = parameterValue1.add(parameterValue2);
 
                     }
                     case "-" -> {
-                        parameterValue1 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(0)).values().get(i);
-                        parameterValue2 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(1)).values().get(i);
+                        parameterValue1 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(0)).values().get(i);
+                        parameterValue2 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(1)).values().get(i);
                         resultValue = parameterValue1.subtract(parameterValue2);
                     }
                     case "/" -> {
-                        parameterValue1 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(0)).values().get(i);
-                        parameterValue2 = (BigDecimal) variablesMap.get(parameter2.fieldList().get(1)).values().get(i);
+                        parameterValue1 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(0)).values().get(i);
+                        parameterValue2 = (BigDecimal) variablesMap.get(calculatedParameter.fieldList().get(1)).values().get(i);
                         try {
                             resultValue = parameterValue1.divide(parameterValue2, 3, RoundingMode.DOWN);
 
@@ -267,8 +275,8 @@ public class TaskApplication {
 
                     }
                     case "*" -> {
-                        parameterValue1 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
-                        parameterValue2 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
+                        parameterValue1 = (BigDecimal) variablesMap.get(calculatedParameter.name()).values().get(i);
+                        parameterValue2 = (BigDecimal) variablesMap.get(calculatedParameter.name()).values().get(i);
                         resultValue = parameterValue1.multiply(parameterValue2);
                     }
 
@@ -276,13 +284,13 @@ public class TaskApplication {
                 objects.add(resultValue);
 
             }
-            map.put(parameter2.name(), new VariableData(type, objects));
+            map.put(calculatedParameter.name(), new VariableData(type, objects));
         }
         return map;
     }
 
-    private static List<Parameter2> obtainParameters(List<Parameter> parameters) {
-        var parameterList = new ArrayList<Parameter2>();
+    private static List<CalculatedParameter> obtainParameters(List<Parameter> parameters) {
+        var parameterList = new ArrayList<CalculatedParameter>();
         // assume there exists no other parameter references in a parameter value
         for (Parameter parameter : parameters) {
 
@@ -308,7 +316,7 @@ public class TaskApplication {
                     listOfField.add(fieldResult.toString());
                 }
             }
-            parameterList.add(new Parameter2(parameter.name(), parameter.type(),
+            parameterList.add(new CalculatedParameter(parameter.name(), parameter.type(),
                     listOfField, listOfOperator));
         }
         return parameterList;
@@ -336,7 +344,8 @@ public class TaskApplication {
     }
 
     private static Rule obtainRuleFromJson() throws IOException {
-        File f = new File("C:\\Users\\Akira_Life\\IdeaProjects\\task\\src\\main\\resources\\test_source\\rule.json");
+        URL resource = TaskApplication.class.getClassLoader().getResource("rule.json");
+        File f = new File(resource.getPath());
         byte[] bytes = Files.readAllBytes(f.toPath());
         String json = new String(bytes);
         ObjectMapper objectMapper = new ObjectMapper();

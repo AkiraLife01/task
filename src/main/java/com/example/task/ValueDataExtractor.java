@@ -1,5 +1,7 @@
 package com.example.task;
 
+import com.example.task.domain.VariableData;
+
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
