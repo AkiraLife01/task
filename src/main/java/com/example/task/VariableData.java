@@ -1,6 +1,6 @@
 package com.example.task;
 
-import java.util.ArrayList;
+import java.util.List;
 
-public record VariableData(String type, ArrayList<Object> values) {
+public record VariableData(String type, List<Object> values) {
 }

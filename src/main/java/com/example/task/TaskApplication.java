@@ -6,15 +6,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -94,13 +93,13 @@ public class TaskApplication {
 
                     }
                 }
-                System.out.println();
 
                 assert variables.size() > 0;
 
 
                 var listOfParameters = new ArrayList<Parameter2>();
 
+                // assume there exists no other parameter references in a parameter value
                 for (Parameter parameter : rule.parameters()) {
                     var listOfField = new ArrayList<String>();
                     var listOfOperator = new ArrayList<String>();
@@ -127,32 +126,37 @@ public class TaskApplication {
                             listOfField, listOfOperator));
                 }
 
-                System.out.println();
 
-                var parameterResult = new ArrayList<ParameterResult>();
+                var parameterMap = new HashMap<String, VariableData>();
                 final int setSize = variablesMap.get(variables.get(0).name()).values().size();
 
                 BigDecimal parameterValue1;
                 BigDecimal parameterValue2;
-                BigDecimal resultValue = null;
+                
 
+
+                // assume there are only one operator per parameter value
                 for (Parameter2 parameter2 : listOfParameters) {
-
+                    var type = parameter2.type();
+                    List<Object> objects = new ArrayList<>();
+                    
                     for (int i = 0; i < setSize; i++) {
                         a = i;
-
+                        
+                        Object resultValue = null;
+                        
                         switch (parameter2.listOfOperators().get(0)) {
                             case "+" -> {
+                                //TODO добавить переключатель для типов сравнения Date и BigDecimal и TimeStamp
                                 parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
                                 parameterValue2 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(1)).values().get(i);
                                 resultValue = parameterValue1.add(parameterValue2);
-                                System.out.println(resultValue);
+                                
                             }
                             case "-" -> {
                                 parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
                                 parameterValue2 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(1)).values().get(i);
                                 resultValue = parameterValue1.subtract(parameterValue2);
-                                System.out.println(resultValue);
                             }
                             case "/" -> {
                                 parameterValue1 = (BigDecimal) variablesMap.get(parameter2.listOfFields().get(0)).values().get(i);
@@ -163,24 +167,118 @@ public class TaskApplication {
                                 } catch (ArithmeticException arithmeticException) {
                                     System.out.println("Деление на 0");
                                 }
-                                System.out.println(resultValue);
 
                             }
                             case "*" -> {
                                 parameterValue1 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
                                 parameterValue2 = (BigDecimal) variablesMap.get(parameter2.name()).values().get(i);
                                 resultValue = parameterValue1.multiply(parameterValue2);
-                                System.out.println(resultValue);
                             }
+
                         }
-                        parameterResult.add(new ParameterResult(parameter2.name(), resultValue));
+                        objects.add(resultValue);
+
+                    }
+                    parameterMap.put(parameter2.name(), new VariableData(type, objects));
+                }
+
+
+                var criterias = new HashMap<Long, List<Boolean>>();
+
+                var valueDataExtractor = new ValueDataExtractor(variablesMap, setSize);
+
+
+                for (Criteria criteria : rule.criterias()) {
+
+                    var parameterName = criteria.parameter();
+                    List<Object> parameters;
+                    var type = "";
+
+                    if (variablesMap.containsKey(parameterName)) {
+                        parameters = variablesMap.get(parameterName).values();
+                        type = variablesMap.get(parameterName).type();
+
+                    } else {
+                        parameters = parameterMap.get(parameterName).values();
+                        type = parameterMap.get(parameterName).type();
                     }
 
+                    List<Object> values = new ArrayList<>(setSize);
+
+                    if (isConstValue(criteria)) {
+
+                        Object value = convertToType(type, criteria.value());
+                        for (int i = 0; i < setSize; i++) {
+                            values.add(value);
+                        }
+                    }
+
+                    if (isReferenceValue(criteria)) {
+                        String referenceValue = ValueDataExtractor.getReference(criteria.value());
+
+                        if (variablesMap.containsKey(referenceValue)) {
+                            values = variablesMap.get(referenceValue).values();
+
+                        } else {
+                            values = parameterMap.get(referenceValue).values();
+                        }
+                    }
+
+
+                    var operator = criteria.operator();
+
+                    var criteriaResults = new ArrayList<Boolean>();
+
+                    for (int i = 0; i < setSize; i++) {
+
+                        var parameter  =  parameters.get(i);
+                        var value =  values.get(i);
+
+                        if (parameter instanceof BigDecimal parameterBigDec && value instanceof BigDecimal valueBigDec) {
+
+                            switch (operator) {
+                                case "lt" -> {
+                                    boolean b = parameterBigDec.compareTo(valueBigDec) < 0;
+                                    criteriaResults.add(b);
+                                }
+                                case "gt" -> {
+                                    boolean b = parameterBigDec.compareTo(valueBigDec) > 0;
+                                    criteriaResults.add(b);
+                                }
+                                case "eq" -> {
+                                    boolean b = parameterBigDec.compareTo(valueBigDec) == 0;
+                                    criteriaResults.add(b);
+                                }
+                            }
+                        } else if (parameter instanceof Date parameterDate && value instanceof Date valueDate) {
+                            switch (operator) {
+                                case "lt" -> {
+                                    boolean b = parameterDate.compareTo(valueDate) < 0;
+                                    criteriaResults.add(b);
+                                }
+                                case "gt" -> {
+                                    boolean b = parameterDate.compareTo(valueDate) > 0;
+                                    criteriaResults.add(b);
+                                }
+                                case "eq" -> {
+                                    boolean b = parameterDate.compareTo(valueDate) == 0;
+                                    criteriaResults.add(b);
+                                }
+                            }
+                        }
+                        // TODO надо сделать операторы для остальных типов данных (как минимум equal)
+
+                    }
+                    criterias.put(criteria.id(), criteriaResults);
                 }
-                System.out.println("sssssssss");
 
+                // TODO получить корневой Node
+                // TODO получить нужные критерии на вычисления
+                // TODO сравнить их по указанному оператору и сохранить результаты в белев список список
+                // TODO пройтись по списку и в качестве ключа вытащить id к нужному Node (loss 1000.0 or 0.0)
+                // TODO вытащить из мапы те у кого значение loss 1000
 
-
+                System.out.println(criterias);
             } catch (SQLException ex) {
                 System.out.println("Connection failed...");
 
@@ -194,10 +292,44 @@ public class TaskApplication {
 
     }
 
+    private static Object convertToType(String type, String value) throws Exception {
+        Object result = null;
+
+        switch (type) {
+            case "BigDecimal" -> {
+                result = new BigDecimal(value);
+            }
+            case "Date" -> {
+                result = new SimpleDateFormat("yyyy-MM-dd").parse(value);
+            }
+            case "Timestamp" -> {
+                // I am not sure which format does the timestamp has
+                throw new Exception();
+            }
+            case "Boolean" -> {
+                result = value.equalsIgnoreCase("true");
+            }
+            case "String" -> {
+                result = value;
+            }
+        }
+        
+        return result;
+    }
+
+    private static boolean isReferenceValue(Criteria criteria) {
+        String trim = criteria.value().trim();
+        return trim.charAt(0) == '{';
+    }
+
+    private static boolean isConstValue(Criteria criteria) {
+        String trim = criteria.value().trim();
+        return trim.charAt(0) != '{';
+    }
+
+
     public static Connection connect() throws SQLException {
         return DriverManager.getConnection(url, user, password);
     }
 }
 
-
-// пока не использую параметры, только столбцы и целые числа
